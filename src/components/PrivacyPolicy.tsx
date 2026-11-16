@@ -94,8 +94,8 @@ export function PrivacyPolicy({ isOpen, onClose }: PrivacyPolicyProps) {
             <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">Contact Us</h3>
             <p className="text-blue-800 dark:text-blue-200">
               If you have any questions about this Privacy Policy, please contact us at: 
-              <a href="mailto:najishanjum058@gmail.com" className="font-medium hover:underline ml-1">
-                najishanjum058@gmail.com
+              <a href="mailto:arshisaleem089@gmail.com" className="font-medium hover:underline ml-1">
+                arshisaleem089@gmail.com
               </a>
             </p>
           </div>

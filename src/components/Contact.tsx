@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Mail, Phone, Github, Linkedin, Facebook, Instagram, MessageSquare, Send, User, AtSign } from 'lucide-react';
+import { Mail, Phone, MapPin, Linkedin, Twitter, MessageSquare, Send, User, AtSign } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function Contact() {
@@ -33,27 +33,15 @@ export function Contact() {
   const socialLinks = [
     {
       name: 'LinkedIn',
-      url: 'https://www.linkedin.com/in/md-najish-anjum-044078328?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app',
+      url: 'https://www.linkedin.com/in/arshi-khan-00483529a?utm_source=share_via&utm_content=profile&utm_medium=member_android',
       icon: Linkedin,
       color: 'text-blue-600 hover:text-blue-700'
     },
     {
-      name: 'GitHub',
-      url: 'https://github.com/Najishanjum',
-      icon: Github,
-      color: 'text-gray-800 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white'
-    },
-    {
-      name: 'Facebook',
-      url: 'https://www.facebook.com/share/16NSRahFs2/',
-      icon: Facebook,
-      color: 'text-blue-600 hover:text-blue-700'
-    },
-    {
-      name: 'Instagram',
-      url: 'https://www.instagram.com/najish.onic?igsh=Z2cwejR1a2xqbWl6',
-      icon: Instagram,
-      color: 'text-pink-600 hover:text-pink-700'
+      name: 'Twitter',
+      url: 'https://x.com/ArshiKhan373342',
+      icon: Twitter,
+      color: 'text-blue-400 hover:text-blue-500'
     }
   ];
 
@@ -83,7 +71,7 @@ export function Contact() {
                     <User className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Najish Anjum</p>
+                    <p className="font-medium text-gray-900 dark:text-white">Arshi Khan</p>
                     <p className="text-gray-600 dark:text-gray-300">Full Stack Developer</p>
                   </div>
                 </div>
@@ -95,10 +83,10 @@ export function Contact() {
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">Email</p>
                     <a 
-                      href="mailto:najishanjum058@gmail.com"
+                      href="mailto:arshisaleem089@gmail.com"
                       className="text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                      najishanjum058@gmail.com
+                      arshisaleem089@gmail.com
                     </a>
                   </div>
                 </div>
@@ -108,13 +96,25 @@ export function Contact() {
                     <Phone className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">WhatsApp</p>
+                    <p className="font-medium text-gray-900 dark:text-white">Phone</p>
                     <a 
-                      href="https://wa.me/917631296157"
+                      href="tel:+919424678050"
                       className="text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                      +91 7631296157
+                      +91 94246 78050
                     </a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                    <MapPin className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Address</p>
+                    <p className="text-gray-600 dark:text-gray-300">
+                      Makka Nagar Adhartal jabalpur
+                    </p>
                   </div>
                 </div>
               </div>
