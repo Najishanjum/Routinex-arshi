@@ -17,7 +17,8 @@ import { PrivacyPolicy } from '@/components/PrivacyPolicy';
 import { TextToSpeechAssistant } from '@/components/TextToSpeechAssistant';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useDarkMode } from '@/hooks/useDarkMode';
-import { Task, ViewMode } from '@/types/task';
+import { useRoutines } from '@/hooks/useRoutines';
+import { Task, ViewMode, TaskStatus } from '@/types/task';
 import { toast } from 'sonner';
 import { RoutineHistory } from '@/components/RoutineHistory';
 import { StreakRewards } from '@/components/StreakRewards';
@@ -35,8 +36,12 @@ import { MiniCourses } from '@/components/MiniCourses';
 import { MicroHabits } from '@/components/MicroHabits';
 import { DailySnapTracker } from '@/components/DailySnapTracker';
 import { AIChatCoach } from '@/components/AIChatCoach';
+import { ProductivityDashboard } from '@/components/ProductivityDashboard';
+import { WeeklyProductivityChart } from '@/components/WeeklyProductivityChart';
+import { RoutineManagerModal } from '@/components/RoutineBuilder/RoutineManagerModal';
+import { AICoachSection } from '@/components/AICoach/AICoachSection';
 import { useAuth } from '@/hooks/useAuth';
-import { Download } from 'lucide-react';
+import { Download, Calendar as CalendarIcon, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadRoutineBackup } from '@/lib/downloadRoutineBackup';
 
@@ -66,10 +71,31 @@ const Index = () => {
   const [showMicroHabits, setShowMicroHabits] = useState(false);
   const [showDailySnapTracker, setShowDailySnapTracker] = useState(false);
   const [showAIChatCoach, setShowAIChatCoach] = useState(false);
+  const [showRoutineManager, setShowRoutineManager] = useState(false);
+  const [showAICoachSection, setShowAICoachSection] = useState(false);
   const { isDarkMode, toggleDarkMode } = useDarkMode();
   const [showPrintMyDay, setShowPrintMyDay] = useState(false);
   const [showProgressCertificate, setShowProgressCertificate] = useState(false);
   const [showMiniCourses, setShowMiniCourses] = useState(false);
+
+  // Routines & AI Suggestion Management
+  const {
+    routines,
+    aiSuggestions,
+    createRoutine,
+    updateRoutine,
+    deleteRoutine,
+    toggleRoutineActive,
+    syncRoutinesToTasks,
+    generateAISuggestions,
+    applySuggestion,
+    dismissSuggestion,
+  } = useRoutines(tasks, setTasks);
+
+  // Sync scheduled routine activities for selectedDate
+  useEffect(() => {
+    syncRoutinesToTasks(selectedDate);
+  }, [selectedDate, syncRoutinesToTasks]);
 
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,7 +138,9 @@ const Index = () => {
     } else {
       const newTask: Task = {
         ...taskData,
-        id: Date.now().toString()
+        id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 7)}`,
+        status: 'pending',
+        completed: false,
       };
       setTasks([...tasks, newTask]);
       toast.success('Task added successfully!');
@@ -124,6 +152,32 @@ const Index = () => {
     
     setIsFormOpen(false);
     setEditingTask(null);
+  };
+
+  const handleStatusChange = (task: Task, newStatus: TaskStatus) => {
+    const isCompleted = newStatus === 'completed';
+    const now = new Date().toISOString();
+
+    setTasks(prevTasks => prevTasks.map(t => {
+      if (t.id === task.id) {
+        return {
+          ...t,
+          status: newStatus,
+          completed: isCompleted,
+          completedAt: isCompleted ? now : undefined,
+          missedAt: newStatus === 'missed' ? now : undefined,
+        };
+      }
+      return t;
+    }));
+
+    if (newStatus === 'completed') {
+      toast.success(`Completed "${task.title}"! 🎉`);
+    } else if (newStatus === 'missed') {
+      toast.info(`Marked "${task.title}" as missed.`);
+    } else {
+      toast.info(`Reset "${task.title}" to pending.`);
+    }
   };
 
   const handleEditTask = (task: Task) => {
@@ -184,7 +238,9 @@ const Index = () => {
   const handleGoalTasksGenerated = (generatedTasks: Omit<Task, 'id'>[]) => {
     const newTasks = generatedTasks.map(task => ({
       ...task,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      status: 'pending' as TaskStatus,
+      completed: false,
     }));
     setTasks([...tasks, ...newTasks]);
     toast.success(`${generatedTasks.length} tasks added to your routine!`);
@@ -196,144 +252,92 @@ const Index = () => {
       
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Main Content */}
+          
+          {/* Main Content (3 Columns) */}
           <div className="lg:col-span-3 space-y-6">
-            {/* Profile Toggle */}
-            <div className="flex justify-end gap-2 flex-wrap">
-              <Button type="button" variant="outline" onClick={handleBackup} className="bg-background/60 text-foreground border-border" title="Download your RoutineX data as a backup">
-                <Download aria-hidden="true" />
-                Back up data
-              </Button>
-              <button
-                onClick={() => setShowAIChatCoach(!showAIChatCoach)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showAIChatCoach
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                🤖 AI Coach
-              </button>
-              <button
-                onClick={() => setShowDailySnapTracker(!showDailySnapTracker)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showDailySnapTracker
-                    ? 'bg-pink-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                📸 Daily Snap
-              </button>
-              <button
-                onClick={() => setShowMicroHabits(!showMicroHabits)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showMicroHabits
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                🧠 Micro-Habits
-              </button>
-              <button
-                onClick={() => setShowMiniCourses(!showMiniCourses)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showMiniCourses
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                🎓 Mini Courses
-              </button>
-              <button
-                onClick={() => setShowProgressCertificate(!showProgressCertificate)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showProgressCertificate
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                🏆 Certificate
-              </button>
-              <button
-                onClick={() => setShowPrintMyDay(!showPrintMyDay)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showPrintMyDay
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                🖨️ Print My Day
-              </button>
-              <button
-                onClick={() => setShowGoalPlanner(!showGoalPlanner)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showGoalPlanner
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                🎯 AI Goals
-              </button>
-              <button
-                onClick={() => setShowFocusMusic(!showFocusMusic)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showFocusMusic
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                🎵 Focus Music
-              </button>
-              <button
-                onClick={() => setShowFriendMode(!showFriendMode)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showFriendMode
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                Friend Mode
-              </button>
-              <button
-                onClick={() => setShowWellnessReminders(!showWellnessReminders)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showWellnessReminders
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                Wellness
-              </button>
-              <button
-                onClick={() => setShowRoutineHistory(!showRoutineHistory)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showRoutineHistory
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                {showRoutineHistory ? 'Hide History' : 'View History'}
-              </button>
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showNotifications
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                Notifications
-              </button>
-              <button
-                onClick={() => setShowUserProfile(!showUserProfile)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showUserProfile
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                }`}
-              >
-                {showUserProfile ? 'Hide Profile' : 'Show Profile'}
-              </button>
+            
+            {/* Action Bar / Feature Nav */}
+            <div className="flex justify-between items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  onClick={() => setShowRoutineManager(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-sm"
+                >
+                  <CalendarIcon className="w-4 h-4" /> Routine Builder
+                </Button>
+                <Button
+                  onClick={() => {
+                    generateAISuggestions();
+                    setShowAICoachSection(true);
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4" /> AI Productivity Coach
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleBackup} 
+                  className="bg-background/60 text-foreground border-border text-xs gap-1.5"
+                  title="Download your RoutineX data as a backup"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Backup
+                </Button>
+                <button
+                  onClick={() => setShowAIChatCoach(!showAIChatCoach)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    showAIChatCoach
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
+                  }`}
+                >
+                  💬 Chat Coach
+                </button>
+                <button
+                  onClick={() => setShowDailySnapTracker(!showDailySnapTracker)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    showDailySnapTracker
+                      ? 'bg-pink-600 text-white'
+                      : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
+                  }`}
+                >
+                  📸 Snaps
+                </button>
+                <button
+                  onClick={() => setShowMicroHabits(!showMicroHabits)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    showMicroHabits
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
+                  }`}
+                >
+                  🧠 Habits
+                </button>
+                <button
+                  onClick={() => setShowPrintMyDay(!showPrintMyDay)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    showPrintMyDay
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
+                  }`}
+                >
+                  🖨️ Print Day
+                </button>
+                <button
+                  onClick={() => setShowUserProfile(!showUserProfile)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    showUserProfile
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
+                  }`}
+                >
+                  {showUserProfile ? 'Hide Profile' : 'Profile'}
+                </button>
+              </div>
             </div>
 
             {/* User Profile Section */}
@@ -341,6 +345,23 @@ const Index = () => {
               <UserProfile tasks={tasks} />
             )}
 
+            {/* Feature Three: Productivity Dashboard */}
+            <ProductivityDashboard
+              tasks={tasks}
+              routines={routines}
+              selectedDate={selectedDate}
+              onOpenRoutineManager={() => setShowRoutineManager(true)}
+              onOpenAddTask={handleAddClick}
+              onOpenAICoach={() => {
+                generateAISuggestions();
+                setShowAICoachSection(true);
+              }}
+            />
+
+            {/* Feature Four: Weekly Productivity Chart */}
+            <WeeklyProductivityChart tasks={tasks} selectedDate={selectedDate} />
+
+            {/* View Mode & Calendar Date Selector */}
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               <ViewToggle 
                 viewMode={viewMode} 
@@ -352,13 +373,13 @@ const Index = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowActivitySummary(!showActivitySummary)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
                     showActivitySummary
                       ? 'bg-blue-600 text-white'
                       : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/70'
                   }`}
                 >
-                  {showActivitySummary ? 'Show Tasks' : 'Show Charts'}
+                  {showActivitySummary ? 'Show Task List' : 'Category Distribution'}
                 </button>
               </div>
             </div>
@@ -370,6 +391,7 @@ const Index = () => {
               onCategoryChange={setSelectedCategory}
             />
 
+            {/* Task Tracking List */}
             {showActivitySummary ? (
               <ActivitySummary tasks={filteredTasks} viewMode={viewMode} />
             ) : (
@@ -377,12 +399,13 @@ const Index = () => {
                 tasks={filteredTasks}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
+                onStatusChange={handleStatusChange}
                 viewMode={viewMode}
               />
             )}
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar (1 Column) */}
           <div className="lg:col-span-1 space-y-6">
             <DailyStats 
               tasks={filteredTasks}
@@ -390,11 +413,67 @@ const Index = () => {
               selectedDate={selectedDate}
             />
             <StreakRewards tasks={tasks} />
+
+            {/* Quick Link Buttons in Sidebar */}
+            <div className="glass-card rounded-2xl p-4 space-y-2 text-xs">
+              <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-[11px] mb-2">
+                More Features
+              </h4>
+              <button
+                onClick={() => setShowGoalPlanner(true)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300 flex items-center justify-between"
+              >
+                <span>🎯 AI Goal Planner</span>
+              </button>
+              <button
+                onClick={() => setShowFocusMusic(true)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300 flex items-center justify-between"
+              >
+                <span>🎵 Focus Music</span>
+              </button>
+              <button
+                onClick={() => setShowMiniCourses(true)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300 flex items-center justify-between"
+              >
+                <span>🎓 Mini Courses</span>
+              </button>
+              <button
+                onClick={() => setShowProgressCertificate(true)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300 flex items-center justify-between"
+              >
+                <span>🏆 Certificates</span>
+              </button>
+              <button
+                onClick={() => setShowFriendMode(true)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300 flex items-center justify-between"
+              >
+                <span>👥 Friend Mode</span>
+              </button>
+              <button
+                onClick={() => setShowWellnessReminders(true)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300 flex items-center justify-between"
+              >
+                <span>🌱 Wellness Reminders</span>
+              </button>
+              <button
+                onClick={() => setShowRoutineHistory(true)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300 flex items-center justify-between"
+              >
+                <span>📜 Routine History</span>
+              </button>
+              <button
+                onClick={() => setShowNotifications(true)}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 text-gray-700 dark:text-gray-300 flex items-center justify-between"
+              >
+                <span>🔔 Notifications</span>
+              </button>
+            </div>
           </div>
+
         </div>
       </div>
 
-      {/* Contact Section */}
+      {/* Feature Seven: Functional Contact Section delivering to arshukhan1600@gmail.com */}
       <Contact />
 
       {/* Footer */}
@@ -420,6 +499,7 @@ const Index = () => {
         onOpenMusic={() => setShowFocusMusic(true)}
       />
 
+      {/* Modals & Drawers */}
       {isFormOpen && (
         <TaskForm
           task={editingTask}
@@ -430,6 +510,29 @@ const Index = () => {
           }}
         />
       )}
+
+      {/* Feature One Modal: Routine Builder */}
+      <RoutineManagerModal
+        isOpen={showRoutineManager}
+        onClose={() => setShowRoutineManager(false)}
+        routines={routines}
+        onCreateRoutine={createRoutine}
+        onUpdateRoutine={updateRoutine}
+        onDeleteRoutine={deleteRoutine}
+        onToggleActive={toggleRoutineActive}
+      />
+
+      {/* Feature Five & Six Modal: AI Productivity Coach & Schedule Recommendations */}
+      <AICoachSection
+        isOpen={showAICoachSection}
+        onClose={() => setShowAICoachSection(false)}
+        tasks={tasks}
+        routines={routines}
+        suggestions={aiSuggestions}
+        onGenerateSuggestions={generateAISuggestions}
+        onApplySuggestion={applySuggestion}
+        onDismissSuggestion={dismissSuggestion}
+      />
 
       <DeleteConfirmModal
         isOpen={!!taskToDelete}

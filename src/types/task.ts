@@ -1,4 +1,6 @@
 
+export type TaskStatus = 'pending' | 'completed' | 'missed';
+
 export interface Task {
   id: string;
   title: string;
@@ -7,10 +9,16 @@ export interface Task {
   category: string;
   notes?: string;
   createdAt?: string;
-  completed: boolean; // Added the missing completed property
-  startTime?: string; // Added startTime property for routine history
-  photos?: string[]; // Added photos array for photo diary
-  priority?: 'urgent-important' | 'not-urgent-important' | 'urgent-not-important' | 'low-priority'; // Added priority field
+  completed: boolean; // Kept for backward compatibility
+  status?: TaskStatus; // Explicit tracking status: 'pending' | 'completed' | 'missed'
+  startTime?: string; // HH:mm format e.g. "06:00"
+  endTime?: string; // HH:mm format e.g. "06:30"
+  photos?: string[]; // Photos array for photo diary
+  priority?: 'urgent-important' | 'not-urgent-important' | 'urgent-not-important' | 'low-priority';
+  routineId?: string; // Link to parent routine
+  activityId?: string; // Link to routine activity
+  completedAt?: string; // Timestamp of completion
+  missedAt?: string; // Timestamp when marked missed
 }
 
 export type ViewMode = 'daily' | 'weekly' | 'monthly';

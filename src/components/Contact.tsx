@@ -1,14 +1,23 @@
-
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Linkedin, Twitter, MessageSquare, Send, User, AtSign } from 'lucide-react';
+import { 
+  Mail, Phone, MapPin, Linkedin, Twitter, MessageSquare, 
+  Send, User, AtSign, Tag, Loader2, CheckCircle2 
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export function Contact() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    message: ''
+    phone: '',
+    subject: '',
+    message: '',
+    website: '', // Honeypot field (hidden from users, traps bots)
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -18,16 +27,82 @@ export function Contact() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.message) {
-      toast.error('Please fill in all fields');
+
+    // Check honeypot trap
+    if (formData.website) {
+      // Bot detected - simulate silent success
+      setIsSuccess(true);
       return;
     }
-    
-    // Simulate form submission
-    toast.success('Message sent successfully! I\'ll get back to you soon.');
-    setFormData({ name: '', email: '', message: '' });
+
+    // Validation
+    if (!formData.name.trim()) {
+      toast.error('Please enter your full name.');
+      return;
+    }
+
+    if (!formData.email.trim() || !validateEmail(formData.email)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    if (!formData.subject.trim()) {
+      toast.error('Please enter a message subject.');
+      return;
+    }
+
+    if (!formData.message.trim() || formData.message.trim().length < 5) {
+      toast.error('Please enter a message of at least 5 characters.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Invoke Supabase Edge Function configured for arshukhan1600@gmail.com
+      const { data, error } = await supabase.functions.invoke('send-contact-email', {
+        body: {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim() || undefined,
+          subject: formData.subject.trim(),
+          message: formData.message.trim(),
+          honeypot: formData.website || undefined,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to deliver message.');
+      }
+
+      if (data && data.success === false) {
+        throw new Error(data.error || 'Email delivery failed.');
+      }
+
+      // Success
+      setIsSuccess(true);
+      toast.success('Your message has been sent successfully to Arshi Khan!');
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        subject: '',
+        message: '',
+        website: '',
+      });
+    } catch (err: any) {
+      console.error('Contact form submission error:', err);
+      // Fallback: If edge function has network or setup block, offer direct email link
+      toast.error(err.message || 'Unable to send message right now. Please try again or email directly.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const socialLinks = [
@@ -53,14 +128,15 @@ export function Contact() {
             Get In Touch
           </h2>
           <p className="text-gray-600 dark:text-gray-300 text-lg max-w-2xl mx-auto">
-            Have questions about RoutineX or want to collaborate? I'd love to hear from you!
+            Have questions about RoutineX, feature requests, or want to collaborate? Send a message directly!
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Contact Info */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+          
+          {/* Contact Info Card */}
           <div className="space-y-8">
-            <div className="glass-card rounded-2xl p-8">
+            <div className="glass-card rounded-2xl p-8 shadow-lg">
               <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
                 Contact Information
               </h3>
@@ -72,7 +148,7 @@ export function Contact() {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">Arshi Khan</p>
-                    <p className="text-gray-600 dark:text-gray-300">Full Stack Developer</p>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Full Stack Developer & RoutineX Creator</p>
                   </div>
                 </div>
 
@@ -83,10 +159,10 @@ export function Contact() {
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">Email</p>
                     <a 
-                      href="mailto:arshisaleem089@gmail.com"
+                      href="mailto:arshukhan1600@gmail.com"
                       className="text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                      arshisaleem089@gmail.com
+                      arshukhan1600@gmail.com
                     </a>
                   </div>
                 </div>
@@ -119,9 +195,9 @@ export function Contact() {
                 </div>
               </div>
 
-              <div className="mt-8">
-                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  Follow Me
+              <div className="mt-8 pt-6 border-t border-gray-200/50 dark:border-gray-700/50">
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">
+                  Connect on Social
                 </h4>
                 <div className="flex gap-4">
                   {socialLinks.map((link) => {
@@ -132,10 +208,10 @@ export function Contact() {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`p-3 glass-card rounded-lg transition-all duration-300 hover:scale-110 ${link.color}`}
+                        className={`p-3 glass-card rounded-xl transition-all duration-300 hover:scale-110 shadow-sm ${link.color}`}
                         title={link.name}
                       >
-                        <IconComponent className="w-6 h-6" />
+                        <IconComponent className="w-5 h-5" />
                       </a>
                     );
                   })}
@@ -145,78 +221,167 @@ export function Contact() {
           </div>
 
           {/* Contact Form */}
-          <div className="glass-card rounded-2xl p-8">
-            <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
+          <div className="glass-card rounded-2xl p-8 shadow-lg">
+            <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
               Send a Message
             </h3>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Your Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-white/20 dark:border-gray-700/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500"
-                    placeholder="Enter your name"
-                    required
-                  />
-                </div>
-              </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Messages will be delivered directly to <span className="font-semibold text-blue-600 dark:text-blue-400">arshukhan1600@gmail.com</span>.
+            </p>
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <AtSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-white/20 dark:border-gray-700/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500"
-                    placeholder="Enter your email"
-                    required
-                  />
+            {isSuccess ? (
+              <div className="p-8 text-center glass-card rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-4">
+                <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-8 h-8" />
                 </div>
+                <h4 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Message Sent!
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-300 max-w-sm mx-auto">
+                  Thank you for reaching out. Your message has been delivered to Arshi Khan. I'll get back to you shortly!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsSuccess(false)}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Send Another Message
+                </button>
               </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {/* Honeypot anti-spam trap (invisible to human visitors) */}
+                <input
+                  type="text"
+                  name="website"
+                  value={formData.website}
+                  onChange={handleInputChange}
+                  style={{ display: 'none', position: 'absolute', left: '-9999px' }}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
 
-              <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Message
-                </label>
-                <div className="relative">
-                  <MessageSquare className="absolute left-3 top-4 w-5 h-5 text-gray-400" />
-                  <textarea
-                    id="message"
-                    name="message"
-                    value={formData.message}
-                    onChange={handleInputChange}
-                    rows={5}
-                    className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-white/20 dark:border-gray-700/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 resize-none"
-                    placeholder="Write your message here..."
-                    required
-                  />
+                {/* Full Name */}
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Full Name *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white text-sm"
+                      placeholder="e.g. Alex Johnson"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 hover:scale-105"
-              >
-                <Send className="w-5 h-5" />
-                Send Message
-              </button>
-            </form>
+                {/* Email Address */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <AtSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white text-sm"
+                      placeholder="alex@example.com"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Phone (Optional) */}
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Phone Number <span className="text-gray-400 text-xs font-normal">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white text-sm"
+                      placeholder="+1 (555) 000-0000"
+                    />
+                  </div>
+                </div>
+
+                {/* Subject */}
+                <div>
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Subject *
+                  </label>
+                  <div className="relative">
+                    <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      id="subject"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white text-sm"
+                      placeholder="e.g. RoutineX Inquiry / Feedback"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Message */}
+                <div>
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Message *
+                  </label>
+                  <div className="relative">
+                    <MessageSquare className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                    <textarea
+                      id="message"
+                      name="message"
+                      value={formData.message}
+                      onChange={handleInputChange}
+                      rows={4}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white text-sm resize-none"
+                      placeholder="Write your message here..."
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:scale-[1.01]"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Delivering Message...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Send Message to arshukhan1600@gmail.com
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
           </div>
+
         </div>
       </div>
     </section>

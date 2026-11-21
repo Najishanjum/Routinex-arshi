@@ -1,14 +1,15 @@
 
-import { Task, PRIORITIES } from '@/types/task';
+import { Task, TaskStatus, PRIORITIES } from '@/types/task';
 import { TaskCard } from './TaskCard';
 
 interface PriorityMatrixProps {
   tasks: Task[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
+  onStatusChange?: (task: Task, status: TaskStatus) => void;
 }
 
-export function PriorityMatrix({ tasks, onEditTask, onDeleteTask }: PriorityMatrixProps) {
+export function PriorityMatrix({ tasks, onEditTask, onDeleteTask, onStatusChange }: PriorityMatrixProps) {
   const tasksByPriority = tasks.reduce((acc, task) => {
     const priority = task.priority || 'low-priority';
     if (!acc[priority]) {
@@ -85,6 +86,7 @@ export function PriorityMatrix({ tasks, onEditTask, onDeleteTask }: PriorityMatr
                       task={task}
                       onEdit={onEditTask}
                       onDelete={onDeleteTask}
+                      onStatusChange={onStatusChange}
                     />
                   ))
                 )}

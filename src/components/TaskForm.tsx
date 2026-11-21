@@ -16,7 +16,8 @@ export function TaskForm({ task, onSave, onClose }: TaskFormProps) {
     category: 'work',
     notes: '',
     photos: [] as string[],
-    priority: 'not-urgent-important' as Task['priority']
+    priority: 'not-urgent-important' as Task['priority'],
+    startTime: '08:00',
   });
 
   useEffect(() => {
@@ -28,7 +29,8 @@ export function TaskForm({ task, onSave, onClose }: TaskFormProps) {
         category: task.category,
         notes: task.notes || '',
         photos: task.photos || [],
-        priority: task.priority || 'not-urgent-important'
+        priority: task.priority || 'not-urgent-important',
+        startTime: task.startTime || '08:00',
       });
     }
   }, [task]);
@@ -38,7 +40,8 @@ export function TaskForm({ task, onSave, onClose }: TaskFormProps) {
     onSave({
       ...formData,
       createdAt: new Date().toISOString(),
-      completed: false
+      completed: task?.completed ?? false,
+      status: task?.status ?? 'pending',
     });
   };
 
@@ -91,6 +94,18 @@ export function TaskForm({ task, onSave, onClose }: TaskFormProps) {
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               {PRIORITIES.find(p => p.id === formData.priority)?.description}
             </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Scheduled Start Time
+            </label>
+            <input
+              type="time"
+              value={formData.startTime}
+              onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+              className="w-full px-4 py-2.5 bg-white/50 dark:bg-gray-800/50 border border-white/20 dark:border-gray-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white text-sm"
+            />
           </div>
 
           <div>
